@@ -1,5 +1,33 @@
 import { SearchFilters, SearchResult, Company } from './types';
 
+// Midpoint headcount per INSEE tranche code × 85 000 € = estimated CA
+const TRANCHE_MIDPOINT: Record<string, number> = {
+  '01': 1.5,    // 1–2
+  '02': 4,      // 3–5
+  '03': 7.5,    // 6–9
+  '11': 14.5,   // 10–19
+  '12': 34.5,   // 20–49
+  '21': 74.5,   // 50–99
+  '22': 149.5,  // 100–199
+  '31': 224.5,  // 200–249
+  '32': 374.5,  // 250–499
+  '41': 749.5,  // 500–999
+  '42': 1499.5, // 1 000–1 999
+  '51': 3499.5, // 2 000–4 999
+  '52': 7499.5, // 5 000–9 999
+  '53': 15000,  // 10 000+
+};
+
+const CA_PER_EMPLOYEE = 85_000;
+
+/** Returns an estimated CA (in €) based on tranche effectif, or null if unavailable */
+export function estimateCAFromEffectif(tranche?: string): number | null {
+  if (!tranche) return null;
+  const mid = TRANCHE_MIDPOINT[tranche];
+  if (!mid) return null;
+  return Math.round(mid * CA_PER_EMPLOYEE);
+}
+
 // ─── Build URLSearchParams for the government API ────────────────────────────
 
 function buildParams(f: SearchFilters, page: number, keyword: string | null, withApe: boolean): URLSearchParams {
@@ -198,7 +226,8 @@ export function computeScore(c: Company, maxCA: number): number {
   const age = yrStr ? new Date().getFullYear() - parseInt(yrStr) : null;
 
   const ageScore = age ? Math.max(0, Math.min(100, (age - 40) / 40 * 100)) : 0;
-  const ca = c.finances?.ca ?? null;
+  const realCA = (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
+  const ca = realCA ?? estimateCAFromEffectif(c.tranche_effectif_salarie);
   const caScore = (ca && maxCA > 0) ? Math.min(100, (Math.log(ca + 1) / Math.log(maxCA + 1)) * 100) : 0;
 
   return Math.round(ageScore * 0.65 + caScore * 0.35);

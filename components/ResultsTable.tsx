@@ -2,7 +2,7 @@
 
 import { Company } from '@/lib/types';
 import { TRANCHE_LABEL } from '@/lib/constants';
-import { computeScore } from '@/lib/fetch';
+import { computeScore, estimateCAFromEffectif } from '@/lib/fetch';
 
 type SortMode = 'default' | 'age' | 'ca' | 'score';
 
@@ -72,7 +72,10 @@ function SortableHeader({ label, mode, current, onClick }: { label: string; mode
 }
 
 export default function ResultsTable({ companies, loading, favorites, prospects, onSelect, onToggleFavorite, sortMode, onSortChange, enrichedAges = {}, enrichingCount = 0 }: Props) {
-  const maxCA = Math.max(0, ...companies.map(c => c.finances?.ca ?? 0));
+  const maxCA = Math.max(0, ...companies.map(c => {
+    const real = (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
+    return real ?? estimateCAFromEffectif(c.tranche_effectif_salarie) ?? 0;
+  }));
 
   if (!loading && companies.length === 0 && enrichingCount === 0) {
     return (
@@ -197,16 +200,28 @@ export default function ResultsTable({ companies, loading, favorites, prospects,
 
                       {/* CA */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        {company.finances?.ca != null ? (
-                          <div>
-                            <span className="text-sm font-semibold text-slate-800">{formatCA(company.finances.ca)}</span>
-                            {company.finances.annee && (
-                              <span className="text-[11px] text-slate-400 ml-1.5">{company.finances.annee}</span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-slate-300 text-sm">—</span>
-                        )}
+                        {(() => {
+                          const realCA = (company.finances?.ca != null && company.finances.ca > 0) ? company.finances.ca : null;
+                          const estCA = !realCA ? estimateCAFromEffectif(company.tranche_effectif_salarie) : null;
+                          const displayCA = realCA ?? estCA;
+                          if (displayCA == null) return <span className="text-slate-300 text-sm">—</span>;
+                          return (
+                            <div>
+                              <span className={estCA != null
+                                ? 'text-sm font-semibold text-blue-600 ring-1 ring-blue-300 rounded px-1 py-0.5 bg-blue-50'
+                                : 'text-sm font-semibold text-slate-800'
+                              }>
+                                {formatCA(displayCA)}
+                              </span>
+                              {realCA && company.finances?.annee && (
+                                <span className="text-[11px] text-slate-400 ml-1.5">{company.finances.annee}</span>
+                              )}
+                              {estCA != null && (
+                                <span className="text-[10px] text-blue-400 ml-1.5 italic">estimé</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Dirigeant + Âge */}

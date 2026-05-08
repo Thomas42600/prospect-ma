@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { SearchFilters } from '@/lib/types';
-import { fetchAllPages, computeScore } from '@/lib/fetch';
+import { fetchAllPages, computeScore, estimateCAFromEffectif } from '@/lib/fetch';
 import { TRANCHE_LABEL } from '@/lib/constants';
 
 interface Props {
@@ -31,7 +31,11 @@ function buildRows(companies: ReturnType<typeof Array.prototype.map>, maxCA: num
       siege?.departement || '',                                                // State / Département
       'France',                                                                // Country
       TRANCHE_LABEL[(c.tranche_effectif_salarie as string) || ''] || '',      // Number of employees
-      finances?.ca ?? '',                                                      // Annual revenue (€)
+      (() => {
+        const real = (finances?.ca != null && (finances.ca as number) > 0) ? finances.ca : null;
+        const est = !real ? estimateCAFromEffectif(c.tranche_effectif_salarie as string | undefined) : null;
+        return real ?? est ?? '';
+      })(),                                                                    // Annual revenue (€)
       // Custom / enrichissement
       c.siren,                                                                 // SIREN
       c.libelle_nature_juridique || c.nature_juridique || '',                  // Forme juridique
@@ -94,7 +98,10 @@ export default function ExportButton({ filters, totalResults }: Props) {
     try {
       const companies = await fetchAllPages(filters, maxPages, p => setProgress(p));
       setProgress(90);
-      const maxCA = Math.max(0, ...companies.map(c => c.finances?.ca ?? 0));
+      const maxCA = Math.max(0, ...companies.map(c => {
+        const r = (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
+        return r ?? estimateCAFromEffectif(c.tranche_effectif_salarie) ?? 0;
+      }));
       const rows = buildRows(companies as never, maxCA);
       download(toCSV(HEADERS, rows), `cabinets-ec-${new Date().toISOString().slice(0, 10)}.csv`);
     } finally {
@@ -112,7 +119,10 @@ export default function ExportButton({ filters, totalResults }: Props) {
       const poolPages = Math.ceil(Math.min(n * 4, Math.min(totalResults, 2000)) / 25);
       const companies = await fetchAllPages(filters, poolPages, p => setProgress(Math.round(p * 0.8)));
       setProgress(85);
-      const maxCA = Math.max(0, ...companies.map(c => c.finances?.ca ?? 0));
+      const maxCA = Math.max(0, ...companies.map(c => {
+        const r = (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
+        return r ?? estimateCAFromEffectif(c.tranche_effectif_salarie) ?? 0;
+      }));
       const sorted = [...companies].sort((a, b) => computeScore(b, maxCA) - computeScore(a, maxCA));
       const top = sorted.slice(0, n);
       const rows = buildRows(top as never, maxCA);

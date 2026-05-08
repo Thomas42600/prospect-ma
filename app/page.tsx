@@ -7,7 +7,7 @@ import CompanyDrawer from '@/components/CompanyDrawer';
 import ExportButton from '@/components/ExportButton';
 import Pagination from '@/components/Pagination';
 import { SearchFilters, SearchResult, Company } from '@/lib/types';
-import { fetchData, fetchAllPages } from '@/lib/fetch';
+import { fetchData, fetchAllPages, estimateCAFromEffectif } from '@/lib/fetch';
 
 const DEFAULT_FILTERS: SearchFilters = {
   page: 1,
@@ -218,8 +218,10 @@ export default function Home() {
       return enrichedYear ? Y - enrichedYear : null;
     };
 
-    const getCA = (c: Company): number | null =>
-      (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
+    const getCA = (c: Company): number | null => {
+      const real = (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
+      return real ?? estimateCAFromEffectif(c.tranche_effectif_salarie);
+    };
 
     if (sortMode === 'default') {
       return [...filteredCompanies].sort((a, b) => {
