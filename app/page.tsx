@@ -191,7 +191,7 @@ export default function Home() {
   // Source: all pages (when sort active) or current API page
   const sourceCompanies = allResults ?? results?.results ?? [];
 
-  // Siège uniquement filter
+  // Siège uniquement + estimated CA range filter
   const filteredCompanies = useMemo(() => {
     let companies = sourceCompanies;
     if (filters.siege_only) {
@@ -201,8 +201,20 @@ export default function Home() {
         companies = companies.filter(c => c.siege?.region === filters.region);
       }
     }
+    // Apply CA filter to estimated CAs (real CAs are already filtered by the API)
+    if (filters.ca_min != null || filters.ca_max != null) {
+      companies = companies.filter(c => {
+        const realCA = (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
+        if (realCA !== null) return true; // already handled by API
+        const estCA = estimateCAFromEffectif(c.tranche_effectif_salarie);
+        if (estCA === null) return true; // no estimate possible, keep as unknown
+        if (filters.ca_min != null && estCA < filters.ca_min) return false;
+        if (filters.ca_max != null && estCA > filters.ca_max) return false;
+        return true;
+      });
+    }
     return companies;
-  }, [sourceCompanies, filters.siege_only, filters.departement, filters.region]);
+  }, [sourceCompanies, filters.siege_only, filters.departement, filters.region, filters.ca_min, filters.ca_max]);
 
   // ── Sorting (applied to ALL companies, then paginated) ───────────────────────
   const sortedAllCompanies = useMemo(() => {
