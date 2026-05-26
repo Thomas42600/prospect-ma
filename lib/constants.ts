@@ -194,3 +194,35 @@ export const APE_OPTIONS = [
 export const TRANCHE_LABEL: Record<string, string> = Object.fromEntries(
   TRANCHES_EFFECTIFS.map(t => [t.code, t.label])
 );
+
+export const QUALITE_DIRIGEANT_OPTIONS = [
+  { key: 'gerant',       label: 'Gérant',              description: 'Gérant, co-gérant, gérant associé…' },
+  { key: 'president_sas', label: 'Président SAS/SASU', description: 'Président de SAS ou SASU' },
+  { key: 'dg',           label: 'Directeur Général',   description: 'DG, Directeur général' },
+  { key: 'president_ca', label: 'Président du CA',     description: 'PDG, Président du conseil d\'administration' },
+];
+
+/** Normalize a string: lowercase + strip accents */
+function norm(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/** Check if a qualite string matches a given category key */
+export function matchesQualiteKey(qualite: string | undefined | null, key: string): boolean {
+  if (!qualite) return false;
+  const q = norm(qualite);
+  switch (key) {
+    case 'gerant':
+      return q.includes('gerant');
+    case 'president_sas':
+      return q.includes('president') && !q.includes('conseil') && !q.includes('directeur general') && !q.includes('directeur général') && q !== 'pdg';
+    case 'dg':
+      return (q.includes('directeur') && q.includes('general')) || q === 'dg';
+    case 'president_ca':
+      return (q.includes('president') && q.includes('conseil')) ||
+             q === 'pdg' ||
+             (q.includes('president') && q.includes('directeur general'));
+    default:
+      return false;
+  }
+}

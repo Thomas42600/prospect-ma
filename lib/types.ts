@@ -21,6 +21,8 @@ export interface SearchFilters {
   age_presets_selected?: string[];
   // Filtre siège uniquement (client-side)
   siege_only?: boolean;
+  // Filtre type de dirigeant (client-side)
+  qualite_dirigeant?: string[];
 }
 
 export interface Siege {

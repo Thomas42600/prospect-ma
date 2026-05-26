@@ -8,6 +8,7 @@ import ExportButton from '@/components/ExportButton';
 import Pagination from '@/components/Pagination';
 import { SearchFilters, SearchResult, Company } from '@/lib/types';
 import { fetchData, fetchAllPages, estimateCAFromEffectif } from '@/lib/fetch';
+import { matchesQualiteKey } from '@/lib/constants';
 
 const DEFAULT_FILTERS: SearchFilters = {
   page: 1,
@@ -201,6 +202,18 @@ export default function Home() {
         companies = companies.filter(c => c.siege?.region === filters.region);
       }
     }
+    // Apply dirigeant qualite filter (client-side)
+    if (filters.qualite_dirigeant && filters.qualite_dirigeant.length > 0) {
+      companies = companies.filter(c => {
+        const dirs = c.dirigeants || [];
+        // Keep company if ANY dirigeant matches ANY selected category
+        return dirs.some(d => {
+          const q = d.qualite || d.type_dirigeant || d.type || '';
+          return filters.qualite_dirigeant!.some(key => matchesQualiteKey(q, key));
+        });
+      });
+    }
+
     // Apply CA filter to estimated CAs (real CAs are already filtered by the API)
     if (filters.ca_min != null || filters.ca_max != null) {
       companies = companies.filter(c => {

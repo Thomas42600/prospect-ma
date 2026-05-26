@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { SearchFilters } from '@/lib/types';
 import {
   REGIONS, DEPARTEMENTS, TRANCHES_EFFECTIFS, FORMES_JURIDIQUES,
-  APE_OPTIONS, KEYWORD_PRESETS, CA_TRANCHES, AGE_PRESETS,
+  APE_OPTIONS, KEYWORD_PRESETS, CA_TRANCHES, AGE_PRESETS, QUALITE_DIRIGEANT_OPTIONS,
 } from '@/lib/constants';
 
 interface Props {
@@ -111,6 +111,7 @@ export default function FiltersPanel({ filters, onChange, totalResults, callCoun
     filters.activite_principale !== '69.20Z' ? true : null,
     filters.ca_min != null || filters.ca_max != null || (filters.ca_tranches_selected?.length ?? 0) > 0 ? true : null,
     filters.date_naissance_min || filters.date_naissance_max || (filters.age_presets_selected?.length ?? 0) > 0 ? true : null,
+    (filters.qualite_dirigeant?.length ?? 0) > 0 ? true : null,
   ].filter(Boolean).length;
 
   const reset = () => onChange({
@@ -120,7 +121,7 @@ export default function FiltersPanel({ filters, onChange, totalResults, callCoun
     etat_administratif: 'A', activite_principale: '69.20Z',
     ca_min: undefined, ca_max: undefined, ca_tranches_selected: undefined,
     date_naissance_min: undefined, date_naissance_max: undefined, age_presets_selected: undefined,
-    siege_only: undefined,
+    siege_only: undefined, qualite_dirigeant: undefined,
   });
 
   const selectedCaTranches = filters.ca_tranches_selected || [];
@@ -378,6 +379,48 @@ export default function FiltersPanel({ filters, onChange, totalResults, callCoun
           )}
           <p className="text-[10.5px] text-slate-400 leading-relaxed">
             Dirigeants sans date de naissance inclus automatiquement.
+          </p>
+        </Section>
+
+        <Divider />
+
+        {/* Type de dirigeant */}
+        <Section label="Type de dirigeant">
+          <div className="flex flex-wrap gap-1">
+            {QUALITE_DIRIGEANT_OPTIONS.map(opt => {
+              const selected = filters.qualite_dirigeant || [];
+              const active = selected.includes(opt.key);
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    const next = active
+                      ? selected.filter(k => k !== opt.key)
+                      : [...selected, opt.key];
+                    onChange({ qualite_dirigeant: next.length > 0 ? next : undefined });
+                  }}
+                  title={opt.description}
+                  className={`px-2 py-1 text-[11px] rounded-md border transition font-medium ${
+                    active
+                      ? 'bg-violet-600 border-violet-600 text-white'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-violet-400 hover:text-violet-600'
+                  }`}
+                >
+                  {active ? '✓ ' : ''}{opt.label}
+                </button>
+              );
+            })}
+          </div>
+          {(filters.qualite_dirigeant?.length ?? 0) > 0 && (
+            <button
+              onClick={() => onChange({ qualite_dirigeant: undefined })}
+              className="text-[11px] text-slate-400 hover:text-slate-600 transition flex items-center gap-1"
+            >
+              <span>✕</span> Effacer
+            </button>
+          )}
+          <p className="text-[10.5px] text-slate-400 leading-relaxed">
+            Filtre sur le titre du dirigeant principal. Si rien coché, tous les profils sont inclus.
           </p>
         </Section>
 
