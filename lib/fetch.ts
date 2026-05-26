@@ -219,18 +219,46 @@ export function ageToDate(age: number): string {
   return `${new Date().getFullYear() - age}-01-01`;
 }
 
-/** Compute M&A score (0–100) for a company given the max CA in the dataset */
+/** Compute M&A score (0–100) for a company given the max CA in the dataset.
+ *
+ * Formula:
+ *   base  = 65% × ageScore(moyenne dirigeants humains) + 35% × caScore
+ *   +10   si dirigeant humain unique (pas de succession interne possible)
+ *   −10   si plusieurs dirigeants humains dont au moins un < 45 ans (risque de succession interne)
+ *   clamped [0, 100]
+ */
 export function computeScore(c: Company, maxCA: number): number {
-  const d = c.dirigeants?.[0];
-  const yrStr = (d?.date_de_naissance || d?.annee_de_naissance || '').match(/(\d{4})/)?.[1];
-  const age = yrStr ? new Date().getFullYear() - parseInt(yrStr) : null;
+  const Y = new Date().getFullYear();
 
-  const ageScore = age ? Math.max(0, Math.min(100, (age - 40) / 40 * 100)) : 0;
+  // Only natural persons (exclude personne morale / holdings)
+  const humanDirs = (c.dirigeants || []).filter(d => !d.denomination && !d.siren);
+
+  // Ages of human directors with a known birth year
+  const ages = humanDirs
+    .map(d => {
+      const yr = (d.date_de_naissance || d.annee_de_naissance || '').match(/(\d{4})/)?.[1];
+      return yr ? Y - parseInt(yr) : null;
+    })
+    .filter((a): a is number => a !== null && a > 15 && a < 110);
+
+  // Average age score
+  const avgAge = ages.length > 0 ? ages.reduce((s, a) => s + a, 0) / ages.length : null;
+  const ageScore = avgAge ? Math.max(0, Math.min(100, (avgAge - 40) / 40 * 100)) : 0;
+
+  // CA score (real CA or estimated from headcount)
   const realCA = (c.finances?.ca != null && c.finances.ca > 0) ? c.finances.ca : null;
   const ca = realCA ?? estimateCAFromEffectif(c.tranche_effectif_salarie);
   const caScore = (ca && maxCA > 0) ? Math.min(100, (Math.log(ca + 1) / Math.log(maxCA + 1)) * 100) : 0;
 
-  return Math.round(ageScore * 0.65 + caScore * 0.35);
+  let score = ageScore * 0.65 + caScore * 0.35;
+
+  // Bonus: single human director → no internal succession possible
+  if (humanDirs.length === 1) score += 10;
+
+  // Malus: young co-director alongside older ones → internal succession likely
+  if (ages.length >= 2 && ages.some(a => a < 45)) score -= 10;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 /** Count of parallel API calls for a given filter config */

@@ -7,7 +7,7 @@ import CompanyDrawer from '@/components/CompanyDrawer';
 import ExportButton from '@/components/ExportButton';
 import Pagination from '@/components/Pagination';
 import { SearchFilters, SearchResult, Company } from '@/lib/types';
-import { fetchData, fetchAllPages, estimateCAFromEffectif } from '@/lib/fetch';
+import { fetchData, fetchAllPages, estimateCAFromEffectif, computeScore } from '@/lib/fetch';
 import { matchesQualiteKey } from '@/lib/constants';
 
 const DEFAULT_FILTERS: SearchFilters = {
@@ -293,16 +293,7 @@ export default function Home() {
 
     if (sortMode === 'score') {
       const maxCA = Math.max(0, ...filteredCompanies.map(c => getCA(c) ?? 0));
-      const ageScore = (c: Company) => {
-        const age = getAge(c);
-        return age ? Math.max(0, Math.min(100, (age - 40) / 40 * 100)) : 0;
-      };
-      const caScore = (c: Company) => {
-        const ca = getCA(c);
-        return (ca && maxCA > 0) ? Math.min(100, (Math.log(ca + 1) / Math.log(maxCA + 1)) * 100) : 0;
-      };
-      const score = (c: Company) => ageScore(c) * 0.65 + caScore(c) * 0.35;
-      return [...filteredCompanies].sort((a, b) => score(b) - score(a));
+      return [...filteredCompanies].sort((a, b) => computeScore(b, maxCA) - computeScore(a, maxCA));
     }
 
     return filteredCompanies;
@@ -450,7 +441,7 @@ export default function Home() {
               </span>
             )}
             {sortMode === 'score' && !allResults && (
-              <span className="ml-2 text-[10.5px] text-slate-400">Score = 65% âge + 35% CA</span>
+              <span className="ml-2 text-[10.5px] text-slate-400">Score = 65% âge moy. + 35% CA · ±10 pts structure</span>
             )}
           </div>
         )}
