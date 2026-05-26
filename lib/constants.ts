@@ -196,10 +196,11 @@ export const TRANCHE_LABEL: Record<string, string> = Object.fromEntries(
 );
 
 export const QUALITE_DIRIGEANT_OPTIONS = [
-  { key: 'gerant',       label: 'Gérant',              description: 'Gérant, co-gérant, gérant associé…' },
-  { key: 'president_sas', label: 'Président SAS/SASU', description: 'Président de SAS ou SASU' },
-  { key: 'dg',           label: 'Directeur Général',   description: 'DG, Directeur général' },
-  { key: 'president_ca', label: 'Président du CA',     description: 'PDG, Président du conseil d\'administration' },
+  { key: 'gerant',        label: 'Gérant',              description: 'Gérant, co-gérant, gérant associé…' },
+  { key: 'president_sas', label: 'Président SAS/SASU',  description: 'Président de SAS ou SASU' },
+  { key: 'dg',            label: 'Directeur Général',   description: 'DG, Directeur général' },
+  { key: 'dgd',           label: 'DG Délégué',          description: 'Directeur général délégué' },
+  { key: 'president_ca',  label: 'Président du CA',     description: 'PDG, Président du conseil d\'administration' },
 ];
 
 /** Normalize a string: lowercase + strip accents */
@@ -217,7 +218,9 @@ export function matchesQualiteKey(qualite: string | undefined | null, key: strin
     case 'president_sas':
       return q.includes('president') && !q.includes('conseil') && !q.includes('directeur general') && !q.includes('directeur général') && q !== 'pdg';
     case 'dg':
-      return (q.includes('directeur') && q.includes('general')) || q === 'dg';
+      return (q.includes('directeur') && q.includes('general') && !q.includes('delegue') && !q.includes('délégué')) || q === 'dg';
+    case 'dgd':
+      return q.includes('directeur') && q.includes('general') && (q.includes('delegue') || q.includes('délégué'));
     case 'president_ca':
       return (q.includes('president') && q.includes('conseil')) ||
              q === 'pdg' ||
