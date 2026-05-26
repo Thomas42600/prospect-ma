@@ -204,14 +204,25 @@ export default function Home() {
     }
     // Apply dirigeant qualite filter (client-side)
     if (filters.qualite_dirigeant && filters.qualite_dirigeant.length > 0) {
-      companies = companies.filter(c => {
-        const dirs = c.dirigeants || [];
-        // Keep company if ANY dirigeant matches ANY selected category
-        return dirs.some(d => {
+      const keys = filters.qualite_dirigeant;
+      companies = companies
+        .filter(c => (c.dirigeants || []).some(d => {
           const q = d.qualite || d.type_dirigeant || d.type || '';
-          return filters.qualite_dirigeant!.some(key => matchesQualiteKey(q, key));
+          return keys.some(k => matchesQualiteKey(q, k));
+        }))
+        .map(c => {
+          // Move the first matching dirigeant to index 0 so it's always displayed
+          const dirs = c.dirigeants || [];
+          const matchIdx = dirs.findIndex(d => {
+            const q = d.qualite || d.type_dirigeant || d.type || '';
+            return keys.some(k => matchesQualiteKey(q, k));
+          });
+          if (matchIdx <= 0) return c;
+          const reordered = [...dirs];
+          const [matched] = reordered.splice(matchIdx, 1);
+          reordered.unshift(matched);
+          return { ...c, dirigeants: reordered };
         });
-      });
     }
 
     // Apply CA filter to estimated CAs (real CAs are already filtered by the API)
