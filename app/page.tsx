@@ -205,15 +205,19 @@ export default function Home() {
     // Apply dirigeant qualite filter (client-side)
     if (filters.qualite_dirigeant && filters.qualite_dirigeant.length > 0) {
       const keys = filters.qualite_dirigeant;
+      // Only match natural persons (personne physique), not holding companies / personne morale
+      const isHuman = (d: import('@/lib/types').Dirigeant) => !d.denomination && !d.siren;
       companies = companies
         .filter(c => (c.dirigeants || []).some(d => {
+          if (!isHuman(d)) return false;
           const q = d.qualite || d.type_dirigeant || d.type || '';
           return keys.some(k => matchesQualiteKey(q, k));
         }))
         .map(c => {
-          // Move the first matching dirigeant to index 0 so it's always displayed
+          // Move the first matching human dirigeant to index 0 so it's always displayed
           const dirs = c.dirigeants || [];
           const matchIdx = dirs.findIndex(d => {
+            if (!isHuman(d)) return false;
             const q = d.qualite || d.type_dirigeant || d.type || '';
             return keys.some(k => matchesQualiteKey(q, k));
           });
